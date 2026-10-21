@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2233">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<title>TEJAM</title>
+<meta name="description" content="TEJAM — sanoat korxonalari uchun energiya tejash tizimi: dastgoh darajasidagi datchiklar, AI va Telegram.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a control-room page. Paper-white panels, navy instrument faces, one amber needle. Hero = live meter; then panels that each behave like an instrument. */
+:root{
+  --bg:#F2F3EF; --bg2:#E7EAE4; --panel:#FFFFFF; --navy:#0F2233; --navy2:#17324A;
+  --fg:#0F2233; --muted:#4D5E6E; --line:rgba(15,34,51,.12);
+  --amber:#F5A524; --amber-text:#9A5E05; --blue:#2C6FB7; --ok:#2F7A4F; --warn-bg:#FFF4DF;
+  --onnavy:#F2F3EF; --onnavy-muted:#B9C7D4;
+  --display:"Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  --body:"Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1824; --bg2:#0F2030; --panel:#14283A; --navy:#081420; --navy2:#12273A;
+    --fg:#E8EDF2; --muted:#A7B6C4; --line:rgba(232,237,242,.12);
+    --amber:#F5A524; --amber-text:#F5B544; --blue:#6FA8E6; --ok:#6FCB95; --warn-bg:#3A2A0C;
+    --onnavy:#F2F3EF; --onnavy-muted:#B9C7D4; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B1824; --bg2:#0F2030; --panel:#14283A; --navy:#081420; --navy2:#12273A;
+  --fg:#E8EDF2; --muted:#A7B6C4; --line:rgba(232,237,242,.12);
+  --amber:#F5A524; --amber-text:#F5B544; --blue:#6FA8E6; --ok:#6FCB95; --warn-bg:#3A2A0C;
+  --onnavy:#F2F3EF; --onnavy-muted:#B9C7D4; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--bg)}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.02;letter-spacing:-.02em;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+.wrap{max-width:1180px;margin-inline:auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:6px}
+.eyebrow{font:700 13px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber-text)}
+.on-navy .eyebrow{color:var(--amber)}
+.btn{display:inline-flex;align-items:center;gap:10px;height:52px;padding:0 24px;border-radius:12px;border:0;font:700 16px var(--body);cursor:pointer;text-decoration:none;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn-amber{background:var(--amber);color:#0F2233}
+.btn-line{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn-line:hover{box-shadow:inset 0 0 0 1.5px var(--fg)}
+
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:24px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font:800 22px var(--display);letter-spacing:.04em;text-decoration:none}
+.brand svg{width:32px;height:32px}
+.nav nav{display:flex;gap:22px;margin-left:auto}
+.nav nav a{text-decoration:none;color:var(--muted);font-weight:600;font-size:15px}
+.nav nav a:hover{color:var(--fg)}
+.nav-r{display:flex;gap:10px;align-items:center}
+.seg{display:flex;background:var(--panel);border-radius:10px;padding:4px;box-shadow:inset 0 0 0 1px var(--line)}
+.seg button{border:0;background:transparent;color:var(--muted);font:700 13px var(--mono);padding:8px 12px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--onnavy)}
+.nav .btn{height:42px;padding:0 16px;font-size:14px}
+@media (max-width:980px){.nav nav{display:none}.nav-r{margin-left:auto}}
+@media (max-width:520px){.nav .btn{display:none}}
+
+.hero{padding-block:64px 72px}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+.hero h1{font-size:clamp(68px,11vw,148px);font-weight:800;letter-spacing:-.045em;line-height:.88}
+.hero .tag{font:700 clamp(24px,2.8vw,34px)/1.2 var(--display);margin-top:20px;max-width:20ch}
+.hero .lead{color:var(--muted);font-size:18px;max-width:54ch;margin-top:16px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.tariffs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-radius:14px;overflow:hidden;margin-top:34px;max-width:580px}
+.tariffs div{background:var(--bg);padding:14px 16px;min-width:0}
+.tariffs b{display:block;font:800 26px var(--display);font-variant-numeric:tabular-nums}
+.tariffs span{font-size:13px;color:var(--muted);line-height:1.35;display:block}
+.gauge{background:var(--navy);border-radius:28px;padding:28px;color:var(--onnavy);box-shadow:0 30px 80px rgba(15,34,51,.25);display:grid;gap:14px}
+.gauge svg{width:100%;height:auto}
+.needle{transform-origin:200px 200px;transition:transform 1.2s cubic-bezier(.3,1.4,.4,1)}
+.gauge .read{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.gauge .read b{font:800 40px var(--display);font-variant-numeric:tabular-nums;color:var(--amber)}
+.gauge .read span{font:600 13px var(--mono);color:var(--onnavy-muted);text-transform:uppercase;letter-spacing:.08em}
+.gauge .tog{display:flex;gap:8px}
+.gauge .tog button{flex:1;border:0;border-radius:10px;padding:12px;font:700 14px var(--body);cursor:pointer;background:var(--navy2);color:var(--onnavy-muted)}
+.gauge .tog button[aria-pressed="true"]{background:var(--amber);color:#0F2233}
+@media (max-width:900px){.hero .wrap{grid-template-columns:1fr}}
+
+section.s{padding-block:96px;border-top:1px solid var(--line)}
+section.alt{background:var(--bg2)}
+section.on-navy{background:var(--navy);color:var(--onnavy);border-top:0}
+.head{display:grid;gap:14px;max-width:780px;margin-bottom:44px}
+.head h2{font-size:clamp(38px,5vw,64px);font-weight:800;letter-spacing:-.03em}
+.head p{color:var(--muted);font-size:18px;max-width:62ch}
+.on-navy .head p{color:var(--onnavy-muted)}
+@supports (animation-timeline:view()){
+  .reveal{animation:rise linear backwards;animation-timeline:view();animation-range:entry 0% entry 60%}
+  @keyframes rise{from{transform:translateY(26px)}}
+}
+
+/* leaks */
+.leaks{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.leak{background:var(--panel);border-radius:18px;padding:24px;display:grid;gap:10px;align-content:start;text-align:left;border:0;color:inherit;font:inherit;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line);transition:transform .2s,box-shadow .2s;min-width:0}
+.leak:hover{transform:translateY(-3px)}
+.leak[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--amber)}
+.leak svg{width:40px;height:40px;fill:none;stroke:var(--amber-text);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.leak h3{font:700 21px var(--body);letter-spacing:0}
+.leak p{color:var(--muted);font-size:15px}
+.leak .st{font:700 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.leak[aria-pressed="true"] .st{color:var(--ok)}
+.leaknote{margin-top:16px;font:500 13px var(--mono);color:var(--muted)}
+@media (max-width:980px){.leaks{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.leaks{grid-template-columns:1fr}}
+
+/* flow */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;position:relative}
+.fs{background:var(--navy2);border-radius:18px;padding:24px;display:grid;gap:10px;align-content:start;position:relative;min-width:0;transition:background .3s}
+.fs.on{background:var(--amber);color:#0F2233}
+.fs .k{font:800 44px/1 var(--display);color:var(--amber)}
+.fs.on .k{color:#0F2233}
+.fs h3{font:700 22px var(--body);letter-spacing:0}
+.fs p{color:var(--onnavy-muted);font-size:15px}
+.fs.on p{color:#3A2A06}
+.pulse{height:4px;border-radius:4px;background:repeating-linear-gradient(90deg,var(--amber) 0 18px,transparent 18px 30px);background-size:30px 4px;animation:flow 1s linear infinite;margin-top:22px;opacity:.8}
+@keyframes flow{to{background-position:30px 0}}
+@media (max-width:860px){.flow{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.flow{grid-template-columns:1fr}}
+
+/* dashboard demo */
+.dash{display:grid;grid-template-columns:1.25fr .75fr;gap:20px}
+.panel{background:var(--panel);border-radius:20px;padding:24px;box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.panel .ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.panel .ph b{font:800 20px var(--display)}
+.panel .ph span{font:500 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.mrow{display:grid;grid-template-columns:150px 1fr 96px;gap:12px;align-items:center;padding:8px 0}
+.mrow span{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbar{height:14px;border-radius:7px;background:var(--bg2);overflow:hidden}
+.mbar i{display:block;height:100%;border-radius:7px;background:var(--blue);transition:width .8s ease}
+.mrow.hot .mbar i{background:var(--amber)}
+.mrow em{font:700 14px var(--mono);font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+.spark{width:100%;height:120px;margin-top:10px}
+.alerts{display:grid;gap:10px}
+.alert{background:var(--warn-bg);border-radius:14px;padding:14px 16px;display:grid;gap:4px;animation:pop .4s ease both}
+.alert b{font-size:15px}
+.alert p{font-size:14px;color:var(--muted)}
+.alert.ok{background:color-mix(in srgb,var(--ok) 14%,var(--panel))}
+@keyframes pop{from{transform:translateY(8px)}}
+.demo-note{margin-top:14px;font:500 13px var(--mono);color:var(--muted)}
+@media (max-width:900px){.dash{grid-template-columns:1fr}.mrow{grid-template-columns:110px 1fr 80px}}
+
+/* calculator */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+.inputs{display:grid;gap:22px}
+.field{display:grid;gap:8px}
+.field label{font-weight:700}
+.field .v{font:800 34px var(--display);font-variant-numeric:tabular-nums}
+.field .v small{font:600 15px var(--mono);color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--amber);height:28px}
+.out{background:var(--navy);color:var(--onnavy);border-radius:22px;padding:28px;display:grid;gap:18px}
+.out .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;border-bottom:1px solid rgba(242,243,239,.12);padding-bottom:14px;flex-wrap:wrap}
+.out .row:last-of-type{border-bottom:0}
+.out span{color:var(--onnavy-muted);font-size:15px}
+.out b{font:800 30px var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.out .big b{font-size:44px;color:var(--amber)}
+.out .fine{font:500 12px var(--mono);color:var(--onnavy-muted)}
+@media (max-width:900px){.calc{grid-template-columns:1fr}}
+
+/* model */
+.model{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.mc{background:var(--panel);border-radius:18px;padding:26px;display:grid;gap:10px;align-content:start;box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.mc .n{font:700 13px var(--mono);color:var(--muted)}
+.mc h3{font:800 26px var(--display)}
+.mc p{color:var(--muted);font-size:15px}
+.mc.hl{background:var(--navy);color:var(--onnavy);box-shadow:none}
+.mc.hl p,.mc.hl .n{color:var(--onnavy-muted)}
+.mc.hl h3{color:var(--amber)}
+.segs{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.segs span{background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px}
+@media (max-width:860px){.model{grid-template-columns:1fr}}
+
+/* market */
+.mk{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.mk div{border-radius:20px;padding:30px;display:grid;gap:8px;min-width:0}
+.mk .a{background:var(--navy);color:var(--onnavy)}
+.mk .a b{color:var(--amber)}
+.mk .b{background:var(--panel);box-shadow:inset 0 0 0 1px var(--line)}
+.mk .b b{color:var(--blue)}
+.mk b{font:800 clamp(56px,8vw,96px)/1 var(--display);font-variant-numeric:tabular-nums}
+.mk h3{font:700 22px var(--body);letter-spacing:0}
+.mk p{font-size:15px;opacity:.8}
+.src{margin-top:16px;font:500 12px var(--mono);color:var(--muted)}
+.src a{color:var(--muted)}
+@media (max-width:860px){.mk{grid-template-columns:1fr}}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.rs{border-top:6px solid var(--line);padding:24px 20px 0 0;display:grid;gap:8px;align-content:start;min-width:0}
+.rs:nth-child(1){border-color:var(--amber)}.rs:nth-child(2){border-color:var(--blue)}.rs:nth-child(3){border-color:#5D7A93}.rs:nth-child(4){border-color:var(--onnavy)}
+.rs .w{font:700 13px var(--mono);color:var(--amber)}
+.rs h3{font:800 28px var(--display)}
+.rs ul{margin:0;padding-left:18px;color:var(--onnavy-muted);font-size:15px}
+@media (max-width:860px){.road{grid-template-columns:1fr 1fr;row-gap:28px}}
+@media (max-width:480px){.road{grid-template-columns:1fr}}
+
+/* invest */
+.inv{display:grid;grid-template-columns:.8fr 1.2fr;gap:56px;align-items:start}
+.amt{font:800 clamp(56px,7.4vw,104px)/.9 var(--display);letter-spacing:-.04em;white-space:nowrap}
+.inv .amt+p{color:var(--muted);margin-top:16px;max-width:40ch}
+.bars{display:grid;gap:14px}
+.bar{display:grid;grid-template-columns:1fr auto;gap:6px 16px;align-items:center}
+.bar span{font-weight:600;font-size:15px;min-width:0}
+.bar em{font:700 14px var(--mono);font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar i{grid-column:1/-1;height:12px;border-radius:6px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden;display:block}
+.bar i u{display:block;height:100%;border-radius:6px;background:var(--navy);width:var(--w);animation:grow 1.4s cubic-bezier(.3,0,.2,1) both}
+.bar:nth-child(2) i u{background:var(--amber)}
+.bar:nth-child(n+3) i u{background:var(--blue)}
+@keyframes grow{from{width:0}}
+@media (max-width:900px){.inv{grid-template-columns:1fr;gap:32px}}
+
+.final{padding-block:110px}
+.final h2{font-size:clamp(46px,8vw,108px);font-weight:800;letter-spacing:-.04em;max-width:13ch}
+.final p{color:var(--onnavy-muted);font-size:18px;margin-top:18px;max-width:52ch}
+.final .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.final .btn-line{color:var(--onnavy);box-shadow:inset 0 0 0 1.5px rgba(242,243,239,.3)}
+footer{padding-block:28px;border-top:1px solid var(--line)}
+footer .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:14px}
+footer .phone{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+footer .phone b{color:var(--fg);font:700 16px var(--mono);user-select:all}
+footer .copy{border:0;border-radius:8px;padding:6px 10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg);font:600 13px var(--body);cursor:pointer}
+#toast{visibility:hidden;position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,140%);background:var(--fg);color:var(--bg);padding:14px 20px;border-radius:12px;font-weight:600;transition:transform .35s;z-index:70;max-width:calc(100% - 32px)}
+#toast.show{visibility:visible;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="TEJAM">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 30 A 15 15 0 0 1 34 30" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" opacity=".3"/><path d="M6 30 A 15 15 0 0 1 12 18" fill="none" stroke="#F5A524" stroke-width="4.5" stroke-linecap="round"/><path d="M20 30 L12 21" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><circle cx="20" cy="30" r="3.5" fill="#F5A524"/></svg>
+      TEJAM
+    </a>
+    <nav aria-label="Bo‘limlar">
+      <a href="#isrof" data-i="n1">Isrof</a>
+      <a href="#qanday" data-i="n2">Qanday ishlaydi</a>
+      <a href="#demo" data-i="n3">Demo</a>
+      <a href="#hisob" data-i="n4">Kalkulyator</a>
+      <a href="#investitsiya" data-i="n5">Investitsiya</a>
+    </nav>
+    <div class="nav-r">
+      <div class="seg" role="group" aria-label="Til / Language">
+        <button type="button" data-lang="uz" aria-pressed="true">UZ</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <a class="btn btn-amber" href="#hisob" data-i="ncta">Tejamni hisoblash</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow" data-i="h_eye">Sanoat energiya samaradorligi · O‘zbekiston</p>
+        <h1>TEJAM</h1>
+        <p class="tag" data-i="h_tag">Zavodingiz qayerda pul yoqayotganini dastgoh darajasida ko‘ring.</p>
+        <p class="lead" data-i="h_lead">Har bir dastgohga klipsli datchik taqamiz. AI bo‘sh ishlash, havo sizishi va tungi isrofni topadi, rahbar esa Telegramda so‘m bilan hisoblangan tavsiya oladi. Korxona tejalgan puldan ulush to‘laydi.</p>
+        <div class="cta">
+          <a class="btn btn-amber" href="#hisob" data-i="h_c1">Tejamni hisoblash →</a>
+          <a class="btn btn-line" href="#demo" data-i="h_c2">Demoni ko‘rish</a>
+        </div>
+        <div class="tariffs">
+          <div><b>1 100</b><span data-i="t1">so‘m/kVt·s, yuridik shaxslar</span></div>
+          <div><b>2 000</b><span data-i="t2">so‘m/m³ gaz</span></div>
+          <div><b>61,1k</b><span data-i="t3">sanoat korxonasi</span></div>
+        </div>
+      </div>
+      <div class="gauge" aria-label="Energiya sarfi o‘lchagichi">
+        <svg viewBox="0 0 400 240" aria-hidden="true">
+          <path d="M40 200 A 160 160 0 0 1 360 200" fill="none" stroke="#1D3A52" stroke-width="30" stroke-linecap="round"/>
+          <path id="arcOk" d="M40 200 A 160 160 0 0 1 120 61" fill="none" stroke="#6FCB95" stroke-width="30" stroke-linecap="round"/>
+          <path d="M280 61 A 160 160 0 0 1 360 200" fill="none" stroke="#F5A524" stroke-width="30" stroke-linecap="round" opacity=".9"/>
+          <g stroke="#5D7A93" stroke-width="4" stroke-linecap="round"><path d="M200 22 V44"/><path d="M74 74 l16 16"/><path d="M326 74 l-16 16"/><path d="M22 200 h22"/><path d="M378 200 h-22"/></g>
+          <g class="needle" id="needle"><path d="M200 200 L200 62" stroke="#F2F3EF" stroke-width="8" stroke-linecap="round"/></g>
+          <circle cx="200" cy="200" r="18" fill="#F5A524"/><circle cx="200" cy="200" r="7" fill="#0F2233"/>
+        </svg>
+        <div class="read"><span data-i="g_lbl">Bugungi sarf</span><b id="gVal">1 240 kVt·s</b></div>
+        <div class="tog" role="group" aria-label="Rejim">
+          <button type="button" id="gBefore" aria-pressed="true" data-i="g_b">TEJAMgacha</button>
+          <button type="button" id="gAfter" aria-pressed="false" data-i="g_a">TEJAM bilan</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="s alt" id="isrof">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="l_eye">Isrof qayerda yashiringan</p>
+        <h2 data-i="l_h">Umumiy hisoblagich bitta raqam ko‘rsatadi. Isrof to‘rt joyda</h2>
+        <p data-i="l_p">Kartani bosing: TEJAM shu isrofni qanday topishini ko‘rasiz.</p>
+      </div>
+      <div class="leaks" id="leaks"></div>
+      <p class="leaknote" id="leakNote"></p>
+    </div>
+  </section>
+
+  <section class="s on-navy" id="qanday">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="f_eye">Qanday ishlaydi</p>
+        <h2 data-i="f_h">Datchikdan rahbarning telefonigacha</h2>
+        <p data-i="f_p">Datchik kabelni kesmasdan taqiladi. O‘rnatish bir kun, ishlab chiqarish to‘xtamaydi.</p>
+      </div>
+      <div class="flow" id="flow">
+        <div class="fs"><span class="k">1</span><h3 data-i="f1">Datchik</h3><p data-i="f1p">Klipsli tok datchigi, gaz va havo sarf o‘lchagichlari</p></div>
+        <div class="fs"><span class="k">2</span><h3 data-i="f2">Shlyuz</h3><p data-i="f2p">Har sexdagi qurilma ma’lumotni GSM orqali bulutga yuboradi</p></div>
+        <div class="fs"><span class="k">3</span><h3 data-i="f3">AI tahlil</h3><p data-i="f3p">Bo‘sh ishlash, sizish va cho‘qqilarni dastgoh bo‘yicha topadi</p></div>
+        <div class="fs"><span class="k">4</span><h3 data-i="f4">Telegram</h3><p data-i="f4p">Ogohlantirish va haftalik so‘mdagi hisobot</p></div>
+      </div>
+      <div class="pulse" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="s" id="demo">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="d_eye">Jonli demo</p>
+        <h2 data-i="d_h">Rahbar ko‘radigan ekran</h2>
+        <p data-i="d_p">Har bir dastgohning sarfi so‘mda, isrof joyi va nima qilish kerakligi. Raqamlar har bir necha soniyada yangilanadi.</p>
+      </div>
+      <div class="dash">
+        <div class="panel">
+          <div class="ph"><b data-i="d_ws">2-sex · bugun</b><span data-i="d_live">namuna · jonli</span></div>
+          <div id="machines"></div>
+          <svg class="spark" viewBox="0 0 600 120" preserveAspectRatio="none" aria-label="24 soatlik sarf grafigi">
+            <defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#F5A524" stop-opacity=".35"/><stop offset="1" stop-color="#F5A524" stop-opacity="0"/></linearGradient></defs>
+            <g stroke="var(--line)" stroke-width="1"><path d="M0 30 H600 M0 60 H600 M0 90 H600"/></g>
+            <rect x="0" y="0" width="150" height="120" fill="var(--bg2)" opacity=".7"/>
+            <path id="sparkA" d="" fill="url(#sg)"/><path id="sparkL" d="" fill="none" stroke="#F5A524" stroke-width="3"/>
+          </svg>
+          <p class="demo-note" data-i="d_axis">Kulrang zona — 22:00–06:00, smena yo‘q</p>
+        </div>
+        <div class="panel">
+          <div class="ph"><b data-i="d_al">Telegram ogohlantirishlar</b><span>bot</span></div>
+          <div class="alerts" id="alerts"></div>
+        </div>
+      </div>
+      <p class="demo-note" data-i="d_note">Ekrandagi barcha raqamlar namuna. Hisob 1 100 so‘m/kVt·s tarifi bo‘yicha.</p>
+    </div>
+  </section>
+
+  <section class="s alt" id="hisob">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="c_eye">Kalkulyator</p>
+        <h2 data-i="c_h">Korxonangiz qancha tejashi mumkin</h2>
+        <p data-i="c_p">Oylik sarfni va kutilayotgan tejash foizini tanlang. TEJAM ulushi tasdiqlangan tejamning 30% i.</p>
+      </div>
+      <div class="calc">
+        <div class="inputs">
+          <div class="field"><label for="kwh" data-i="c_l1">Oylik elektr sarfi</label><div class="v"><span id="kwhV">100 000</span> <small>kVt·s</small></div><input id="kwh" type="range" min="10000" max="500000" step="5000" value="100000"></div>
+          <div class="field"><label for="pct" data-i="c_l2">Kutilayotgan tejash</label><div class="v"><span id="pctV">10</span> <small>%</small></div><input id="pct" type="range" min="3" max="25" step="1" value="10"></div>
+          <div class="field"><label for="tar" data-i="c_l3">Tarif</label><div class="v"><span id="tarV">1 100</span> <small data-i="c_u">so‘m/kVt·s</small></div><input id="tar" type="range" min="800" max="1600" step="50" value="1100"></div>
+        </div>
+        <div class="out" aria-live="polite">
+          <div class="row"><span data-i="c_o1">Oylik hisob</span><b id="oBill"></b></div>
+          <div class="row big"><span data-i="c_o2">Oylik tejam</span><b id="oSave"></b></div>
+          <div class="row"><span data-i="c_o3">Yillik tejam</span><b id="oYear"></b></div>
+          <div class="row"><span data-i="c_o4">TEJAM ulushi (30%)</span><b id="oShare"></b></div>
+          <div class="row"><span data-i="c_o5">Korxonada qoladi</span><b id="oKeep"></b></div>
+          <p class="fine" data-i="c_fine">Bu taxminiy hisob, kafolat emas. Haqiqiy tejam pilot o‘lchovlarida aniqlanadi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="s" id="model">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="m_eye">Biznes model</p>
+        <h2 data-i="m_h">Mijoz tejamdan to‘laydi, cho‘ntagidan emas</h2>
+      </div>
+      <div class="model">
+        <div class="mc reveal"><span class="n">01</span><h3 data-i="m1">Arzon o‘rnatish</h3><p data-i="m1p">Datchik va shlyuz bizning hisobimizdan: kirish to‘sig‘i yo‘q.</p></div>
+        <div class="mc reveal"><span class="n">02</span><h3 data-i="m2">Oylik obuna</h3><p data-i="m2p">Har bir shlyuz uchun: platforma, hisobot va servis.</p></div>
+        <div class="mc hl reveal"><span class="n">03</span><h3 data-i="m3">Tejamdan 30%</h3><p data-i="m3p">Oldingi va keyingi sarf datchiklar bilan solishtiriladi.</p></div>
+      </div>
+      <div class="segs"><span data-i="sg1">To‘qimachilik</span><span data-i="sg2">Oziq-ovqat</span><span data-i="sg3">Qurilish materiallari</span><span data-i="sg4">Issiqxonalar</span><span data-i="sg5">Sovutish omborlari</span></div>
+      <div class="mk" style="margin-top:28px">
+        <div class="a reveal"><b>61,1k</b><h3 data-i="mk1">sanoat korxonasi O‘zbekistonda</h3><p data-i="mk1p">2026-yil 1-mart holatiga</p></div>
+        <div class="b reveal"><b>3 228</b><h3 data-i="mk2">ro‘yxatdagi issiqxona</h3><p data-i="mk2p">EBRD ma’lumoti, 2022</p></div>
+      </div>
+      <p class="src"><span data-i="srcl">Manbalar:</span> <a href="https://buxgalter.uz/oz/publish/doc/text204075_uzbekistonda_yuridik_shahslar_kommunal_hizmatlar_uchun_qancha_tulaydi_amaldagi_tariflar" target="_blank" rel="noopener">VMQ 243-son, 2026 (buxgalter.uz)</a> · stat.uz, 2026-yil 1-mart · <a href="https://www.hortidaily.com/article/9715102/uzbekistan-s-greenhouses-struggle-with-energy-crisis-can-sustainable-solutions-help/" target="_blank" rel="noopener">EBRD 2022 (HortiDaily)</a></p>
+    </div>
+  </section>
+
+  <section class="s on-navy" id="reja">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="eyebrow" data-i="r_eye">Reja (maqsadlar)</p>
+        <h2 data-i="r_h">Pilotdan mintaqagacha</h2>
+      </div>
+      <div class="road">
+        <div class="rs"><span class="w" data-i="r1w">0–6 oy</span><h3 data-i="r1">Pilot</h3><ul><li data-i="r1a">MVP: datchik, bot, ekran</li><li data-i="r1b">5 ta pilot korxona</li><li data-i="r1c">Tejamni o‘lchash usuli</li></ul></div>
+        <div class="rs"><span class="w" data-i="r2w">6–18 oy</span><h3 data-i="r2">30 korxona</h3><ul><li data-i="r2a">AI tavsiyalar moduli</li><li data-i="r2b">Shlyuzni mahalliy yig‘ish</li><li data-i="r2c">Tejamdan ulush shartnomalari</li></ul></div>
+        <div class="rs"><span class="w" data-i="r3w">2–3-yil</span><h3 data-i="r3">O‘zbekiston</h3><ul><li data-i="r3a">Barcha viloyatlar</li><li data-i="r3b">Issiqxonalar segmenti</li><li data-i="r3c">Uglerod hisobotlari</li></ul></div>
+        <div class="rs"><span class="w" data-i="r4w">3-yildan keyin</span><h3 data-i="r4">Markaziy Osiyo</h3><ul><li data-i="r4a">Qozog‘iston, Qirg‘iziston</li><li data-i="r4b">Rus tilidagi interfeys</li><li data-i="r4c">Hamkor integratorlar</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="s" id="investitsiya">
+    <div class="wrap inv">
+      <div>
+        <p class="eyebrow" data-i="v_eye">Investitsiya so‘rovi</p>
+        <p class="amt">$500 000</p>
+        <p data-i="v_p">AI platforma, birinchi 30 ta korxona uchun datchiklar, mahalliy shlyuz ishlab chiqarish va sotuv jamoasi uchun. Taqsimot reja asosida.</p>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+
+  <section class="final on-navy" id="aloqa">
+    <div class="wrap">
+      <p class="eyebrow" data-i="z_eye">Pilotga taklif</p>
+      <h2 data-i="z_h">Isrofni ko‘ring. Pulni qaytaring.</h2>
+      <p data-i="z_p">Energiya sarfi katta korxona, investor yoki hamkor integrator bo‘lsangiz — pilotni birga boshlaymiz.</p>
+      <div class="cta">
+        <button class="btn btn-amber" type="button" id="joinBtn" data-i="z_c">Pilotga yozilish</button>
+        <a class="btn btn-line" href="#top" data-i="z_up">Yuqoriga ↑</a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap"><span>TEJAM · <span data-i="ft1">O‘zbekiston</span></span><span class="phone"><span data-i="ft3">Telefon:</span> <b id="phone">+998 93 429 25 99</b> <button type="button" class="copy" id="copyPhone" data-i="ft4">Nusxalash</button></span><span data-i="ft2">Prototip sayt, 2026. Demo raqamlar shunday belgilangan.</span></div></footer>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  var reduced=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var lang="uz"; try{var sv=localStorage.getItem("tejam:lang"); if(sv==="en"||sv==="uz") lang=sv;}catch(e){}
+  function nf(n){return Math.round(n).toLocaleString("ru-RU").replace(/ /g," ");}
+  function money(n){ if(lang==="en"){ if(n>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,"")+"M UZS"; return nf(n).replace(/ /g,",")+" UZS"; }
+    if(n>=1e6) return (n/1e6).toFixed(1).replace(".",",").replace(/,0$/,"")+" mln so‘m"; return nf(n)+" so‘m"; }
+  function num(n){return lang==="en"?nf(n).replace(/ /g,","):nf(n);}
+
+  var EN={n1:"Waste",n2:"How it works",n3:"Demo",n4:"Calculator",n5:"Investment",ncta:"Calculate savings",
+    h_eye:"Industrial energy efficiency · Uzbekistan",h_tag:"See where your factory burns money, machine by machine.",
+    h_lead:"We clip a sensor onto every machine. AI finds idle running, air leaks and overnight waste, and the manager gets advice in money via Telegram. The plant pays a share of what it saves.",
+    h_c1:"Calculate savings →",h_c2:"See the demo",t1:"UZS/kWh for businesses",t2:"UZS/m³ of gas",t3:"industrial companies",
+    g_lbl:"Today’s use",g_b:"Before TEJAM",g_a:"With TEJAM",
+    l_eye:"Where the waste hides",l_h:"A shared meter shows one number. The waste is in four places",l_p:"Tap a card to see how TEJAM finds that waste.",
+    f_eye:"How it works",f_h:"From the sensor to the manager’s phone",f_p:"The sensor clips on without cutting the cable. Installation takes a day and production doesn’t stop.",
+    f1:"Sensor",f1p:"Clip-on current sensors, gas and air flow meters",f2:"Gateway",f2p:"A device in each workshop sends data to the cloud over GSM",f3:"AI analysis",f3p:"Finds idle running, leaks and peaks for each machine",f4:"Telegram",f4p:"Alerts and a weekly report in money",
+    d_eye:"Live demo",d_h:"What the manager sees",d_p:"Each machine’s use in money, where the waste is and what to do. Figures refresh every few seconds.",
+    d_ws:"Workshop 2 · today",d_live:"sample · live",d_al:"Telegram alerts",d_axis:"Grey zone: 22:00–06:00, no shift working",d_note:"All figures on this screen are samples. Costs use the 1,100 UZS/kWh tariff.",
+    c_eye:"Calculator",c_h:"How much could your plant save",c_p:"Pick your monthly use and the expected saving. TEJAM’s share is 30% of verified savings.",
+    c_l1:"Monthly electricity use",c_l2:"Expected saving",c_l3:"Tariff",c_u:"UZS/kWh",c_o1:"Monthly bill",c_o2:"Monthly saving",c_o3:"Yearly saving",c_o4:"TEJAM share (30%)",c_o5:"Stays with the plant",c_fine:"An estimate, not a guarantee. Real savings are measured during the pilot.",
+    m_eye:"Business model",m_h:"Clients pay from savings, not from their pocket",m1:"Low-cost install",m1p:"We cover sensors and gateways, so there is no entry barrier.",m2:"Monthly subscription",m2p:"Per gateway: platform, reports and service.",m3:"30% of savings",m3p:"Use before and after is compared with sensor data.",
+    sg1:"Textiles",sg2:"Food",sg3:"Building materials",sg4:"Greenhouses",sg5:"Cold storage",mk1:"industrial companies in Uzbekistan",mk1p:"As of 1 March 2026",mk2:"registered greenhouses",mk2p:"EBRD data, 2022",srcl:"Sources:",
+    r_eye:"Roadmap (targets)",r_h:"From pilot to the region",r1w:"Months 0–6",r1:"Pilot",r1a:"MVP: sensor, bot, screen",r1b:"5 pilot plants",r1c:"Savings measurement method",r2w:"Months 6–18",r2:"30 plants",r2a:"AI recommendations module",r2b:"Local gateway assembly",r2c:"Shared-savings contracts",r3w:"Years 2–3",r3:"Uzbekistan",r3a:"All regions",r3b:"Greenhouse segment",r3c:"Carbon reporting",r4w:"Year 3 onwards",r4:"Central Asia",r4a:"Kazakhstan, Kyrgyzstan",r4b:"Russian-language interface",r4c:"Partner integrators",
+    v_eye:"Investment ask",v_p:"For the AI platform, sensors for the first 30 plants, local gateway production and a sales team. The split is a plan.",
+    z_eye:"Join the pilot",z_h:"See the waste. Get the money back.",z_p:"Energy-heavy plants, investors and integration partners: let’s start the pilot together.",z_c:"Join the pilot",z_up:"Back to top ↑",ft1:"Uzbekistan",ft2:"Prototype website, 2026. Demo figures are marked.",ft3:"Phone:",ft4:"Copy"};
+
+  var LEAKS={uz:[["clock","Bo‘sh ishlash","Dastgoh yoqiq, mahsulot yo‘q: tanaffus va smena oralig‘ida","Tok bor, lekin yuklama past — AI buni “bo‘sh ishlash” deb belgilaydi."],["air","Havo sizishi","Kompressor quvurdagi teshiklarni to‘ldirish uchun to‘xtovsiz ishlaydi","Ishlab chiqarish to‘xtaganda ham kompressor yuklansa — sizish bor."],["bolt","Cho‘qqi yuklama","Katta dastgohlar bir vaqtda yoqiladi","Bir vaqtdagi yoqilishlar aniqlanib, ketma-ket yoqish jadvali taklif qilinadi."],["moon","Tungi isrof","Isitgich, ventilyator va nasoslar hech kim yo‘qda ishlaydi","Smena jadvalidan tashqari sarf — tungi taymer tavsiya qilinadi."]],
+            en:[["clock","Idle running","Machine on, nothing produced: breaks and shift gaps","Current flows but load is low, so AI flags it as idle running."],["air","Air leaks","The compressor runs non-stop to make up for holes in the pipes","If the compressor is loaded while production is stopped, there is a leak."],["bolt","Peak loads","Large machines start at the same time","Simultaneous starts are detected and a staggered start schedule is suggested."],["moon","Overnight waste","Heaters, fans and pumps run when nobody is there","Use outside the shift schedule triggers a night-timer recommendation."]]};
+  var ICON={clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',air:'<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8"/>',bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',moon:'<path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/>'};
+  var MACH={uz:["Kompressor","Tikuv liniyasi","Bug‘ dazmol bloki","Ventilyatsiya","Yoritish"],en:["Compressor","Sewing line","Steam pressing","Ventilation","Lighting"]};
+  var ALERTS={uz:[["Kompressor 22:00–06:00 da ishlagan","Smena yo‘q edi. Taxminiy isrof: 96 kVt·s ≈ 105 600 so‘m. Tavsiya: tungi taymer."],["Bug‘ dazmol bloki 40 daqiqa bo‘sh ishladi","Tushlik tanaffusida. ≈ 18 kVt·s. Tavsiya: avtomatik o‘chirish."],["Ventilyatsiya: kechagi tavsiya bajarildi ✓","Tungi sarf 31% kamaydi. Tejam hisobga yozildi."]],
+              en:[["Compressor ran 22:00–06:00","No shift was working. Estimated waste: 96 kWh ≈ 105,600 UZS. Advice: night timer."],["Steam pressing idled for 40 minutes","During lunch break. ≈ 18 kWh. Advice: auto shut-off."],["Ventilation: yesterday’s advice done ✓","Night use down 31%. Saving recorded."]]};
+  var BARS={uz:[["AI platforma va dasturlash jamoasi",130],["Datchik va shlyuzlar (30 korxona)",120],["Sotuv va o‘rnatish jamoasi",80],["Shlyuzni mahalliy ishlab chiqarish",60],["Sertifikatlash va metrologiya",40],["Marketing va pilot loyihalar",40],["Zaxira",30]],
+            en:[["AI platform and software team",130],["Sensors and gateways (30 plants)",120],["Sales and installation team",80],["Local gateway production",60],["Certification and metrology",40],["Marketing and pilots",40],["Reserve",30]]};
+  var T={uz:{toast:"Prototip: so‘rovlar hozircha qabul qilinmaydi.",found:"TEJAM topadi: ",kwh:" kVt·s"},en:{toast:"Prototype: requests aren’t collected yet.",found:"How TEJAM finds it: ",kwh:" kWh"}};
+
+  function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove("show")},2600);}
+
+  function applyLang(){
+    document.documentElement.lang=lang;
+    $$("[data-i]").forEach(function(el){ if(el.dataset.uz===undefined) el.dataset.uz=el.innerHTML; var k=el.dataset.i; el.innerHTML=(lang==="en"&&EN[k]!==undefined)?EN[k]:el.dataset.uz; });
+    $$(".seg button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.lang===lang))});
+    $(".amt").textContent=lang==="en"?"$500,000":"$500 000";
+    buildLeaks(); buildMachines(); renderAlerts(); buildBars(); calc(); setGauge(gMode);
+  }
+
+  /* gauge */
+  var gMode="before";
+  function setGauge(m){
+    gMode=m; var v=m==="before"?1240:960, ang=m==="before"?52:-38;
+    $("#needle").style.transform="rotate("+ang+"deg)";
+    $("#gVal").textContent=num(v)+T[lang].kwh;
+    $("#gBefore").setAttribute("aria-pressed",String(m==="before")); $("#gAfter").setAttribute("aria-pressed",String(m==="after"));
+  }
+  $("#gBefore").addEventListener("click",function(){setGauge("before");stopAuto()});
+  $("#gAfter").addEventListener("click",function(){setGauge("after");stopAuto()});
+  var gTimer=reduced?null:setInterval(function(){setGauge(gMode==="before"?"after":"before")},3200);
+  function stopAuto(){clearInterval(gTimer);gTimer=null;}
+
+  /* leaks */
+  var leakSel=0;
+  function buildLeaks(){
+    var box=$("#leaks"); box.innerHTML="";
+    LEAKS[lang].forEach(function(l,i){
+      var b=document.createElement("button"); b.type="button"; b.className="leak"; b.setAttribute("aria-pressed",String(i===leakSel));
+      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[l[0]]+'</svg><h3>'+l[1]+'</h3><p>'+l[2]+'</p><span class="st">'+(i===leakSel?(lang==="en"?"selected":"tanlandi"):"")+'</span>';
+      b.addEventListener("click",function(){leakSel=i;buildLeaks();}); box.appendChild(b);
+    });
+    $("#leakNote").textContent=T[lang].found+LEAKS[lang][leakSel][3];
+  }
+
+  /* flow highlight */
+  var fi=0, fs=$$(".fs");
+  function flowStep(){fs.forEach(function(f,i){f.classList.toggle("on",i===fi)}); fi=(fi+1)%fs.length;}
+  flowStep(); if(!reduced) setInterval(flowStep,1500);
+
+  /* machines + spark */
+  var base=[412,268,201,140,88], cur=base.slice();
+  function buildMachines(){
+    var box=$("#machines"), max=520; box.innerHTML="";
+    MACH[lang].forEach(function(n,i){
+      var r=document.createElement("div"); r.className="mrow"+(i===0?" hot":"");
+      r.innerHTML='<span>'+n+'</span><div class="mbar"><i style="width:'+(cur[i]/max*100)+'%"></i></div><em>'+num(cur[i])+T[lang].kwh+'</em>'; box.appendChild(r);
+    });
+  }
+  function tick(){
+    cur=base.map(function(v,i){return Math.round(v*(0.94+Math.random()*0.12))});
+    $$(".mrow").forEach(function(r,i){$("i",r).style.width=(cur[i]/520*100)+"%";$("em",r).textContent=num(cur[i])+T[lang].kwh;});
+  }
+  function spark(){
+    var pts=[],w=600,h=120;
+    for(var i=0;i<=48;i++){var hr=i/2, night=(hr<6||hr>=22), v=night?0.42+0.05*Math.sin(i):0.55+0.3*Math.sin((hr-6)/16*Math.PI)+0.05*Math.sin(i*1.7); pts.push([i/48*w, h-10-v*(h-24)]);}
+    var d="M"+pts.map(function(p){return p[0].toFixed(1)+" "+p[1].toFixed(1)}).join(" L");
+    $("#sparkL").setAttribute("d",d); $("#sparkA").setAttribute("d",d+" L"+w+" "+h+" L0 "+h+" Z");
+  }
+  spark(); if(!reduced) setInterval(tick,2800);
+
+  /* alerts */
+  var shown=reduced?3:1;
+  function renderAlerts(){
+    var box=$("#alerts"); box.innerHTML="";
+    ALERTS[lang].slice(0,shown).forEach(function(a,i){var d=document.createElement("div");d.className="alert"+(i===2?" ok":"");d.innerHTML="<b>"+a[0]+"</b><p>"+a[1]+"</p>";box.appendChild(d);});
+  }
+  if(!reduced){var at=setInterval(function(){shown++;renderAlerts();if(shown>=3)clearInterval(at);},2600);}
+
+  /* calculator */
+  function calc(){
+    var k=+$("#kwh").value,p=+$("#pct").value,t=+$("#tar").value;
+    $("#kwhV").textContent=num(k); $("#pctV").textContent=p; $("#tarV").textContent=num(t);
+    var bill=k*t, save=bill*p/100;
+    $("#oBill").textContent=money(bill); $("#oSave").textContent=money(save); $("#oYear").textContent=money(save*12);
+    $("#oShare").textContent=money(save*0.3); $("#oKeep").textContent=money(save*0.7);
+  }
+  ["#kwh","#pct","#tar"].forEach(function(s){$(s).addEventListener("input",calc)});
+
+  /* bars */
+  function buildBars(){
+    var box=$("#bars"); box.innerHTML="";
+    BARS[lang].forEach(function(b){var d=document.createElement("div");d.className="bar";d.innerHTML='<span>'+b[0]+'</span><em>$'+b[1]+'k · '+Math.round(b[1]/5)+'%</em><i><u style="--w:'+(b[1]/130*100)+'%"></u></i>';box.appendChild(d);});
+  }
+
+  $$(".seg button").forEach(function(b){b.addEventListener("click",function(){lang=b.dataset.lang;try{localStorage.setItem("tejam:lang",lang)}catch(e){}applyLang();});});
+  $("#copyPhone").addEventListener("click",function(){var n="+998934292599",msg=lang==="en"?"Number copied":"Raqam nusxalandi";try{navigator.clipboard.writeText(n).then(function(){toast(msg)},function(){selPhone()});}catch(e){selPhone()}});
+  function selPhone(){var r=document.createRange();r.selectNodeContents($("#phone"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);}
+  $("#joinBtn").addEventListener("click",function(){toast(T[lang].toast)});
+  document.addEventListener("click",function(e){var a=e.target.closest('a[href^="#"]');if(!a)return;var id=a.getAttribute("href").slice(1);var el=id?document.getElementById(id):null;if(el){e.preventDefault();el.scrollIntoView({behavior:reduced?"auto":"smooth"});}});
+
+  applyLang();
+  var h=(location.hash||"").slice(1); if(h&&document.getElementById(h)) document.getElementById(h).scrollIntoView();
+})();
+</script>
+</body>
+</html>
